@@ -39,19 +39,31 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Training job
-        run: echo "Starting GPU heavy task"
+      - name: Training job (intentional failure for artifact test)
+        id: train_fail
+        continue-on-error: true
+        run: |
+          echo "Starting GPU heavy task"
+          echo "Intentional training failure for artifact testing" >&2
+          exit 1
 
       - name: Error logs
-        if: failure()
-        run: echo "Training failed" > error_log.txt
+        if: steps.train_fail.outcome == 'failure'
+        run: |
+          echo "Training failed intentionally for artifact testing" > error_log.txt
+          echo "ref=${{ github.ref }}" >> error_log.txt
+          echo "sha=${{ github.sha }}" >> error_log.txt
 
       - name: Upload error logs
-        if: failure()
+        if: steps.train_fail.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: error-log
           path: error_log.txt
+
+      - name: Mark train as failed
+        if: steps.train_fail.outcome == 'failure'
+        run: exit 1
 
       - name: Cleanup
         if: always()
